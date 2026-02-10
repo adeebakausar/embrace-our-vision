@@ -1,53 +1,100 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Calendar, User, Clock, ArrowRight, CalendarDays } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import sandraImage from "@/assets/sandra-russet-silk.png";
 import brettImage from "@/assets/brett-boyland.png";
-import { supabase } from "@/integrations/supabase/client";
+import BookingCalendarStep from "./booking/BookingCalendarStep";
+import BookingDetailsStep from "./booking/BookingDetailsStep";
+import BookingPaymentStep from "./booking/BookingPaymentStep";
+import BookingConfirmationStep from "./booking/BookingConfirmationStep";
+
+export interface BookingData {
+  therapist: string;
+  therapistName: string;
+  date: Date | null;
+  time: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  customerAddress: string;
+  bookingId: string | null;
+}
+
+const initialBookingData: BookingData = {
+  therapist: "",
+  therapistName: "",
+  date: null,
+  time: "",
+  customerName: "",
+  customerEmail: "",
+  customerPhone: "",
+  customerAddress: "",
+  bookingId: null,
+};
+
+const therapists = [
+  {
+    id: "sandra",
+    name: "Sandra Russet-Silk",
+    title: "Psychoanalytic Psychotherapist",
+    image: sandraImage,
+    price: "$110.00 AUD",
+  },
+  {
+    id: "brett",
+    name: "Brett Boyland",
+    title: "Master of Counselling",
+    image: brettImage,
+    price: "$110.00 AUD",
+  },
+];
 
 const Booking = () => {
-  const [sandraCalendarUrl, setSandraCalendarUrl] = useState<string | null>(null);
-  const [brettCalendarUrl, setBrettCalendarUrl] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("sandra");
+  const [step, setStep] = useState(1); // 1=calendar, 2=details, 3=payment, 4=confirmation
+  const [bookingData, setBookingData] = useState<BookingData>(initialBookingData);
 
-  useEffect(() => {
-    const fetchCalendarSettings = async () => {
-      const { data } = await supabase
-        .from("settings")
-        .select("key, value")
-        .in("key", ["sandra_calendar_url", "brett_calendar_url"]);
-      
-      data?.forEach((setting) => {
-        if (setting.key === "sandra_calendar_url") {
-          setSandraCalendarUrl(setting.value);
-        } else if (setting.key === "brett_calendar_url") {
-          setBrettCalendarUrl(setting.value);
-        }
-      });
-    };
-    
-    fetchCalendarSettings();
-  }, []);
+  const currentTherapist = therapists.find((t) => t.id === activeTab)!;
 
-  const therapists = [
-    {
-      id: "sandra",
-      name: "Sandra Russet-Silk",
-      title: "Psychoanalytic Psychotherapist",
-      image: sandraImage,
-      price: "$110.00 AUD",
-      calendarEmbed: sandraCalendarUrl,
-    },
-    {
-      id: "brett",
-      name: "Brett Boyland",
-      title: "Master of Counselling",
-      image: brettImage,
-      price: "$110.00 AUD",
-      calendarEmbed: brettCalendarUrl,
-    },
-  ];
+  const handleDateTimeSelect = (date: Date, time: string) => {
+    setBookingData((prev) => ({
+      ...prev,
+      therapist: activeTab,
+      therapistName: currentTherapist.name,
+      date,
+      time,
+    }));
+    setStep(2);
+  };
+
+  const handleDetailsSubmit = (details: {
+    customerName: string;
+    customerEmail: string;
+    customerPhone: string;
+    customerAddress: string;
+  }) => {
+    setBookingData((prev) => ({ ...prev, ...details }));
+    setStep(3);
+  };
+
+  const handlePaymentSuccess = (bookingId: string) => {
+    setBookingData((prev) => ({ ...prev, bookingId }));
+    setStep(4);
+  };
+
+  const handleReset = () => {
+    setBookingData(initialBookingData);
+    setStep(1);
+  };
+
+  const handleBack = () => {
+    setStep((prev) => Math.max(1, prev - 1));
+  };
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    handleReset();
+  };
 
   return (
     <section id="booking" className="section-padding bg-gradient-to-b from-muted/30 to-background">
@@ -66,85 +113,87 @@ const Booking = () => {
           </p>
         </div>
 
-        {/* Booking Tabs */}
-        <div className="max-w-5xl mx-auto animate-fade-up delay-300">
-          <Tabs defaultValue="sandra" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-10 h-auto p-2 bg-card border border-border/50 rounded-2xl">
-              {therapists.map((therapist) => (
-                <TabsTrigger
-                  key={therapist.id}
-                  value={therapist.id}
-                  className="flex items-center gap-4 py-5 px-6 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300"
-                >
-                  <img 
-                    src={therapist.image} 
-                    alt={therapist.name}
-                    className="w-12 h-12 rounded-full object-cover border-2 border-current/20"
-                  />
-                  <div className="text-left">
-                    <span className="block font-semibold text-base">Book {therapist.name.split(" ")[0]}</span>
-                    <span className="block text-xs opacity-70">{therapist.title}</span>
+        {/* Progress Steps */}
+        <div className="max-w-5xl mx-auto mb-10">
+          <div className="flex items-center justify-center gap-2 md:gap-4">
+            {["Select Time", "Your Details", "Payment", "Confirmed"].map((label, i) => (
+              <div key={label} className="flex items-center gap-2 md:gap-4">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
+                      step > i + 1
+                        ? "bg-primary text-primary-foreground"
+                        : step === i + 1
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {step > i + 1 ? "✓" : i + 1}
                   </div>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
-            {therapists.map((therapist) => (
-              <TabsContent key={therapist.id} value={therapist.id}>
-                <div className="bg-card rounded-3xl border border-border/50 overflow-hidden shadow-soft">
-                  {/* Calendar Embed Area */}
-                  <div className="min-h-[480px] lg:min-h-[550px] flex items-center justify-center bg-gradient-to-br from-muted/30 to-muted/10">
-                    {therapist.calendarEmbed ? (
-                      <iframe
-                        src={therapist.calendarEmbed}
-                        className="w-full h-full min-h-[480px] lg:min-h-[550px] border-0"
-                        title={`Book appointment with ${therapist.name}`}
-                      />
-                    ) : (
-                      <div className="text-center p-12 max-w-lg mx-auto">
-                        <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Calendar className="w-12 h-12 text-primary" />
-                        </div>
-                        <h3 className="font-display text-2xl font-semibold text-foreground mb-3">
-                          Calendar Coming Soon
-                        </h3>
-                        <p className="text-muted-foreground mb-8 leading-relaxed">
-                          {therapist.name}'s booking calendar will be available here shortly. 
-                          In the meantime, please contact us to schedule your appointment.
-                        </p>
-                        <Button size="lg" asChild>
-                          <Link to="/contact">
-                            Contact Us to Book
-                            <ArrowRight size={18} />
-                          </Link>
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Info Bar */}
-                  <div className="p-6 bg-muted/30 border-t border-border/50">
-                    <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
-                      <div className="flex items-center gap-2 text-foreground">
-                        <Clock size={18} className="text-primary" />
-                        <span>50-60 min session</span>
-                      </div>
-                      <div className="hidden sm:block w-px h-5 bg-border" />
-                      <div className="flex items-center gap-2 text-foreground">
-                        <span className="font-semibold text-primary">{therapist.price}</span>
-                        <span className="text-muted-foreground">per session</span>
-                      </div>
-                      <div className="hidden sm:block w-px h-5 bg-border" />
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <User size={18} />
-                        <span>Online & In-Person Available</span>
-                      </div>
-                    </div>
-                  </div>
+                  <span className={`hidden md:block text-sm font-medium ${step >= i + 1 ? "text-foreground" : "text-muted-foreground"}`}>
+                    {label}
+                  </span>
                 </div>
-              </TabsContent>
+                {i < 3 && <div className={`w-8 md:w-16 h-0.5 ${step > i + 1 ? "bg-primary" : "bg-border"}`} />}
+              </div>
             ))}
-          </Tabs>
+          </div>
+        </div>
+
+        {/* Booking Content */}
+        <div className="max-w-5xl mx-auto animate-fade-up delay-300">
+          {step === 1 ? (
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-10 h-auto p-2 bg-card border border-border/50 rounded-2xl">
+                {therapists.map((therapist) => (
+                  <TabsTrigger
+                    key={therapist.id}
+                    value={therapist.id}
+                    className="flex items-center gap-4 py-5 px-6 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300"
+                  >
+                    <img
+                      src={therapist.image}
+                      alt={therapist.name}
+                      className="w-12 h-12 rounded-full object-cover border-2 border-current/20"
+                    />
+                    <div className="text-left">
+                      <span className="block font-semibold text-base">Book {therapist.name.split(" ")[0]}</span>
+                      <span className="block text-xs opacity-70">{therapist.title}</span>
+                    </div>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+
+              {therapists.map((therapist) => (
+                <TabsContent key={therapist.id} value={therapist.id}>
+                  <BookingCalendarStep
+                    therapistName={therapist.name}
+                    therapistId={therapist.id}
+                    onSelect={handleDateTimeSelect}
+                  />
+                </TabsContent>
+              ))}
+            </Tabs>
+          ) : step === 2 ? (
+            <BookingDetailsStep
+              bookingData={bookingData}
+              onSubmit={handleDetailsSubmit}
+              onBack={handleBack}
+            />
+          ) : step === 3 ? (
+            <BookingPaymentStep
+              bookingData={bookingData}
+              therapist={currentTherapist}
+              onSuccess={handlePaymentSuccess}
+              onBack={handleBack}
+            />
+          ) : (
+            <BookingConfirmationStep
+              bookingData={bookingData}
+              therapist={currentTherapist}
+              onReset={handleReset}
+            />
+          )}
         </div>
       </div>
     </section>

@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      bookings: {
+        Row: {
+          amount: number
+          booking_date: string
+          booking_time: string
+          created_at: string
+          currency: string
+          customer_address: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string
+          id: string
+          payment_id: string | null
+          payment_status: string
+          therapist: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          booking_date: string
+          booking_time: string
+          created_at?: string
+          currency?: string
+          customer_address: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string
+          id?: string
+          payment_id?: string | null
+          payment_status?: string
+          therapist: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          booking_date?: string
+          booking_time?: string
+          created_at?: string
+          currency?: string
+          customer_address?: string
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string
+          id?: string
+          payment_id?: string | null
+          payment_status?: string
+          therapist?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       settings: {
         Row: {
           created_at: string
